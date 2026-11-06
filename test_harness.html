@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Testing Demo.printContactInformation</title>
+  <style>
+    body{font-family:system-ui,Helvetica,Arial;margin:20px}
+    input{width:400px;padding:6px;margin:4px 0;display:block}
+    button{padding:8px 12px}
+    .log{white-space:pre-wrap;background:#f6f8fa;border:1px solid #ddd;padding:8px;margin-top:8px}
+  </style>
+</head>
+<body>
+  <h3>Test harness for <code>Demo.printContactInformation</code></h3>
+
+  <label>demo_nome</label>
+  <input id="demo_nome" />
+  <label>demo_email</label>
+  <input id="demo_email" />
+  <label>demo_partitaiva</label>
+  <input id="demo_partitaiva" />
+  <label>demo_tipologia</label>
+  <input id="demo_tipologia" />
+
+  <div style="margin-top:12px">
+    <button id="runBtn">Run Demo.printContactInformation()</button>
+    <button id="clearBtn">Clear fields</button>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <script>
+    // Simple logger
+    function log() { var el = document.getElementById('log'); el.textContent += Array.from(arguments).map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ') + '\n'; console.log.apply(console, arguments); }
+
+    // Load the web resource script (contatto_onload.js) dynamically
+    (function loadScript(){
+      var s = document.createElement('script');
+      s.src = 'contatto_onload.js';
+      s.onload = function(){ log('Loaded contatto_onload.js'); };
+      s.onerror = function(){ log('Failed to load contatto_onload.js from same folder.'); };
+      document.head.appendChild(s);
+    })();
+
+    // Stub Xrm.WebApi.retrieveRecord to return sample data
+    window.Xrm = window.Xrm || {};
+    Xrm.WebApi = Xrm.WebApi || {};
+    Xrm.WebApi.retrieveRecord = function (tableName, id, query) {
+      log('Xrm.WebApi.retrieveRecord called:', tableName, id, query);
+      var sample = {
+        demo_nome: 'Mario Rossi',
+        demo_email: 'mario.rossi@example.com',
+        demo_partitaiva: 'IT01234567890',
+        demo_tipologia: 'Cliente'
+      };
+      return Promise.resolve(sample);
+    };
+
+    // Build a fake formContext / executionContext similar to Dynamics
+    function makeFakeExecutionContext() {
+      var formContext = {
+        data: {
+          entity: {
+            getId: function(){ return '{11111111-1111-1111-1111-111111111111}'; },
+            getIsDirty: function(){ return true; },
+            save: function(){ log('fake save called'); return Promise.resolve('saved'); }
+          }
+        },
+        getAttribute: function(name){
+          return {
+            setValue: function(v){
+              var el = document.getElementById(name);
+              if (el) el.value = v;
+              log('setValue', name, v);
+            }
+          };
+        }
+      };
+
+      return { getFormContext: function(){ return formContext; } };
+    }
+
+    document.getElementById('runBtn').addEventListener('click', function(){
+      var ctx = makeFakeExecutionContext();
+      try{
+        if (window.Demo && typeof window.Demo.printContactInformation === 'function') {
+          log('Invoking Demo.printContactInformation');
+          window.Demo.printContactInformation(ctx);
+        } else if (typeof window.printContactInformation === 'function') {
+          log('Invoking global printContactInformation');
+          window.printContactInformation(ctx);
+        } else {
+          log('Function not available yet. Ensure contatto_onload.js is loaded.');
+        }
+      } catch (e) { log('Invocation error:', e); }
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', function(){
+      ['demo_nome','demo_email','demo_partitaiva','demo_tipologia'].forEach(function(id){document.getElementById(id).value = ''});
+      document.getElementById('log').textContent = '';
+    });
+  </script>
+</body>
+</html>
